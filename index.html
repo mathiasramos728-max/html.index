@@ -1,30 +1,149 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>pa que le presionas al enlace</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Calculadora simple</title>
   <style>
-    body {
-      background-color: #000;
-      color: #fff;
-      font-family: 'Arial', sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      text-align: center;
-    }
-
-    h1 {
-      font-size: 3em;
-      font-weight: bold;
-      text-transform: uppercase;
-    }
+    :root{--bg:#0f172a;--card:#0b1220;--accent:#7c3aed;--btn:#e6e7ee;--btn-dark:#1f2937}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#071024 0%, #09203a 100%);font-family:Inter,Segoe UI,Arial;color:#e6eef8}
+    .container{width:340px;background:radial-gradient(1200px 300px at 10% 10%, rgba(124,58,237,0.07), transparent),var(--card);border-radius:14px;padding:18px;box-shadow:0 8px 30px rgba(2,6,23,0.7)}
+    .display{height:72px;background:rgba(255,255,255,0.03);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;overflow:hidden}
+    .expr{font-size:14px;color:rgba(230,238,248,0.6);white-space:nowrap;text-overflow:ellipsis;overflow:hidden;width:100%}
+    .value{font-size:26px;font-weight:600;margin-top:4px}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+    button{height:54px;border-radius:10px;border:0;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));color:var(--btn);font-size:18px;cursor:pointer;box-shadow:0 4px 10px rgba(2,6,23,0.6)}
+    button:active{transform:translateY(1px)}
+    .op{background:transparent;color:var(--accent);border:1px solid rgba(124,58,237,0.18)}
+    .wide{grid-column:span 2}
+    .danger{background:rgba(220,38,38,0.12);color:#ff9b9b}
+    footer{margin-top:12px;font-size:12px;color:rgba(230,238,248,0.45);text-align:center}
+    @media (max-width:380px){.container{width:92vw}}
   </style>
 </head>
 <body>
-<h1>lol</h1>
+  <div class="container" role="application" aria-label="Calculadora">
+    <div class="display" id="display" tabindex="0">
+      <div class="expr" id="expression">0</div>
+      <div class="value" id="value">0</div>
+    </div>
+
+    <div class="grid" role="group" aria-label="Teclado de la calculadora">
+      <button type="button" class="danger" data-action="clear">C</button>
+      <button type="button" data-action="neg">±</button>
+      <button type="button" data-action="percent">%</button>
+      <button type="button" class="op" data-action="op">÷</button>
+
+      <button type="button" data-num="7">7</button>
+      <button type="button" data-num="8">8</button>
+      <button type="button" data-num="9">9</button>
+      <button type="button" class="op" data-action="op">×</button>
+
+      <button type="button" data-num="4">4</button>
+      <button type="button" data-num="5">5</button>
+      <button type="button" data-num="6">6</button>
+      <button type="button" class="op" data-action="op">−</button>
+
+      <button type="button" data-num="1">1</button>
+      <button type="button" data-num="2">2</button>
+      <button type="button" data-num="3">3</button>
+      <button type="button" class="op" data-action="op">+</button>
+
+      <button type="button" data-num="0" class="wide">0</button>
+      <button type="button" data-num=".">.</button>
+      <button type="button" class="op" data-action="equals">=</button>
+    </div>
+
+    <footer>Soporta teclado: números, + - * /, Enter (=), Backspace (←)</footer>
+  </div>
+
+  <script>
+    (function(){
+      const expressionEl = document.getElementById('expression');
+      const valueEl = document.getElementById('value');
+      let expr = '';
+      let current = '0';
+      let lastWasOp = false;
+
+      function refresh(){
+        expressionEl.textContent = expr || '0';
+        valueEl.textContent = current;
+      }
+
+      function inputNumber(d){
+        if(lastWasOp){ current = d === '.' ? '0.' : d; lastWasOp = false; }
+        else if(current === '0' && d !== '.') current = d;
+        else if(current.includes('.') && d === '.') return;
+        else current = current + d;
+        refresh();
+      }
+
+      function inputOp(op){
+        if(!expr && current==='0' && op !== '-') return; // ignore leading operators except -
+        if(lastWasOp){ // replace operator
+          expr = expr.slice(0, -1) + op;
+        } else {
+          expr = expr ? expr + current + op : current + op;
+          current = '0';
+        }
+        lastWasOp = true;
+        refresh();
+      }
+
+      function clearAll(){ expr = ''; current = '0'; lastWasOp = false; refresh(); }
+
+      function toggleNeg(){ if(current === '0') return; current = current.startsWith('-') ? current.slice(1) : '-' + current; refresh(); }
+
+      function percent(){ current = String(Number(current) / 100); refresh(); }
+
+      function evaluate(){
+        if(lastWasOp) expr = expr.slice(0, -1); // remove trailing op
+        const toEval = (expr || '') + current;
+        try{
+          // Replace × and ÷ and − with JS operators
+          const safe = toEval.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
+          // Basic safety: only digits, operators, decimal point and parentheses allowed
+          if(!/^[0-9+\-*/.() ]+$/.test(safe)) throw new Error('Expresión inválida');
+          const result = Function('return ('+safe+');')();
+          current = (Number.isFinite(result)) ? String(result) : 'Error';
+          expr = '';
+          lastWasOp = false;
+        } catch(e){ current = 'Error'; expr = ''; lastWasOp = false; }
+        refresh();
+      }
+
+      document.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const num = btn.getAttribute('data-num');
+          const action = btn.getAttribute('data-action');
+          if(num!==null){ inputNumber(num); }
+          else if(action === 'clear'){ clearAll(); }
+          else if(action === 'neg'){ toggleNeg(); }
+          else if(action === 'percent'){ percent(); }
+          else if(action === 'op'){ inputOp(btn.textContent.trim()); }
+          else if(action === 'equals'){ evaluate(); }
+        });
+      });
+
+      // Keyboard support
+      window.addEventListener('keydown', (e) => {
+        if(e.key >= '0' && e.key <= '9'){ inputNumber(e.key); e.preventDefault(); }
+        else if(e.key === '.') { inputNumber('.'); e.preventDefault(); }
+        else if(e.key === 'Enter' || e.key === '='){ evaluate(); e.preventDefault(); }
+        else if(e.key === 'Backspace'){ // backspace on current
+          if(current.length>1){ current = current.slice(0,-1); }
+          else { current = '0'; }
+          refresh();
+        }
+        else if(e.key === '+' || e.key === '-' || e.key === '*' || e.key === '/'){
+          const map = {'*':'×','/':'÷'}; inputOp(map[e.key] || e.key);
+        }
+      });
+
+      // Init
+      refresh();
+    })();
+  </script>
 </body>
 </html>
